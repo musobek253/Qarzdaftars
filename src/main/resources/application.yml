@@ -27,12 +27,14 @@ spring:
       token: ${BOT_TOKEN:8484107475:AAF8ztaTnE8iJs-y5C8LBcEODTCxqZd_JMw}
   mail:
     host: smtp.gmail.com
-    port: 587
+    port: 465
     username: ${MAIL_USERNAME:kngt3636@gmail.com}
     password: ${MAIL_PASSWORD:glhr sugq bcau bvzu}
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
+          starttls:
+            enable: false
