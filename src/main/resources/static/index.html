@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debtbook Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="loading" class="center-content">
+        <div class="loader"></div>
+        <p>Yuklanmoqda...</p>
+    </div>
+
+    <div id="manual-login" class="hidden center-content">
+        <h3>Kirish</h3>
+        <p>Telegram ma'lumotlarini olib bo'lmadi.<br>Iltimos, Chat ID orqali kiring:</p>
+        <p><small>(Botga <b>/id</b> deb yozing)</small></p>
+        <form onsubmit="handleManualLogin(event)">
+            <input type="number" id="manual-chat-id" placeholder="Chat ID (masalan: 123456)" required
+                style="margin-bottom: 15px;">
+            <button type="submit" class="primary-btn">Kirish</button>
+        </form>
+    </div>
+
+    <div id="app" class="hidden">
+        <!-- Home View -->
+        <div id="home-view">
+            <!-- Header -->
+            <header>
+                <div class="header-left">
+                    <i class="icon-menu">☰</i>
+                    <div class="shop-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
+                        </svg></div>
+                    <span id="shop-title">Juyrabod ></span>
+                </div>
+            </header>
+
+            <!-- Sub Tabs -->
+            <div class="sub-tabs">
+                <div class="sub-tab active">
+                    Mijozlar
+                    <span class="badge" id="customer-count-badge">0</span>
+                </div>
+                <div class="sub-tab">Ta'minotchilar</div>
+                <div class="sub-tab">Xodimlar <span class="badge">1</span></div>
+            </div>
+
+            <!-- Search -->
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="icon-search">🔍</i>
+                    <input type="text" id="search-input" placeholder="Ism, Telefon raqam" oninput="filterCustomers()">
+                </div>
+                <div class="filter-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Customer List -->
+            <div id="customer-list-container" class="customer-list"></div>
+
+            <!-- FAB Stack (Left Side) -->
+            <div class="fab-stack">
+                <button class="fab-mini" style="background-color: #7B1FA2;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+                <button class="fab-mini" style="background-color: #6200EE;"
+                    onclick="document.getElementById('add-customer-modal').classList.remove('hidden')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics View -->
+        <div id="stats-view" class="hidden">
+            <div class="stats-header">
+                <h2>Statistika</h2>
+                <div class="header-right">
+                    <span>UZS ▼</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon red">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
+                        </svg>
+                    </div>
+                    <h3 id="stat-total-debt" style="color:#FF3B30">0 UZS</h3>
+                    <p>Chiqim</p>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path>
+                            <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path>
+                            <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path>
+                        </svg>
+                    </div>
+                    <h3 id="stat-total-paid" style="color:#4CD964">0 UZS</h3>
+                    <p>Kirim</p>
+                </div>
+            </div>
+
+            <div class="stats-bars">
+                <div class="stat-bar red-bar">
+                    <span>Chiqim balansi ⓘ</span>
+                    <span id="bar-debt-val">0 UZS</span>
+                </div>
+                <div class="stat-bar green-bar">
+                    <span>Kirim balansi ⓘ</span>
+                    <span id="bar-pay-val">0 UZS</span>
+                </div>
+            </div>
+
+            <div class="stats-filters">
+                <button class="active">Qarzdorlar</button>
+                <button>Haqdorlar</button>
+                <button>Hisob-kitob</button>
+            </div>
+
+            <div class="stats-list-header">
+                <span>Tartiblash</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+            </div>
+
+            <div id="stats-transactions-list">
+                <!-- Dynamic List -->
+            </div>
+        </div>
+
+        <!-- Profile View -->
+        <div id="profile-view" class="hidden">
+            <div style="padding:20px; text-align:center;">
+                <h2>Profil</h2>
+                <p>Foydalanuvchi ma'lumotlari...</p>
+            </div>
+        </div>
+
+        <!-- Bottom Nav (Moved outside views conceptually but visually fixed) -->
+        <div class="bottom-nav">
+            <a href="#" class="nav-item active" onclick="switchView('home')">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                Asosiy
+            </a>
+            <a href="#" class="nav-item" onclick="switchView('stats')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="18" y="3" width="4" height="18"></rect>
+                    <rect x="10" y="8" width="4" height="13"></rect>
+                    <rect x="2" y="13" width="4" height="8"></rect>
+                </svg>
+                Statistika
+            </a>
+            <a href="#" class="nav-item" onclick="switchView('profile')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                Profil
+            </a>
+        </div>
+
+        <div id="customer-details-view" class="hidden">
+            <!-- Custom Header -->
+            <div class="details-header-custom" style="text-align: center; padding: 20px 0;">
+                <div class="avatar-lg"
+                    style="width: 60px; height: 60px; background: #eee; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="#999">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <h2 id="details-name" style="margin:0; font-size: 18px;"></h2>
+                <p id="details-phone" style="margin:5px 0 0; color: #888; font-size: 14px;"></p>
+
+                <div class="header-actions"
+                    style="display: flex; justify-content: center; gap: 15px; margin-top: 15px;">
+                    <button class="icon-btn-circle" style="background:#4cd964; color:white;"><svg width="20" height="20"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                            </path>
+                        </svg></button>
+                    <button class="icon-btn-circle" style="background:#ff9500; color:white;"
+                        onclick="sendDebtReminder()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg></button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons-container"
+                style="display: flex; gap: 10px; padding: 0 15px; margin-bottom: 20px;">
+                <button class="action-btn btn-kirim" onclick="openPaymentModalFromDetails()"
+                    style="flex: 1; background: #28a745; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span>+</span> Kirim
+                </button>
+                <button class="action-btn btn-chiqim" onclick="openAddDebtFromDetails()"
+                    style="flex: 1; background: #dc3545; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span>-</span> Chiqim
+                </button>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="summary-section"
+                style="background: #f9f9f9; padding: 15px; margin: 0 15px 20px; border-radius: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: #555;">Chiqim:</span>
+                    <span id="summary-debt" style="color: #dc3545; font-weight: 500;">0 UZS</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <span style="color: #555;">Kirim:</span>
+                    <span id="summary-pay" style="color: #28a745; font-weight: 500;">0 UZS</span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; font-size: 1.1em; font-weight: bold; padding-top: 10px; border-top: 1px solid #eee;">
+                    <span>Balans:</span>
+                    <span id="summary-balance">0 UZS</span>
+                </div>
+            </div>
+
+            <!-- List Header -->
+            <div class="list-header"
+                style="display: flex; justify-content: space-between; padding: 0 15px 10px; color: #555;">
+                <span style="font-weight: bold;">Tartiblash</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+            </div>
+
+            <!-- Debt List -->
+            <div id="details-debt-list" style="padding: 0 15px 80px;">
+                <!-- Debts go here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>To'lov qilish</h3>
+            <form id="payment-form">
+                <label style="display:block; text-align:left; margin-bottom: 5px; color:#555;">Summa:</label>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="number" id="payment-amount" placeholder="Summa (so'm)" required
+                        style="flex:1; margin-bottom: 0;">
+                    <button type="button" class="btn"
+                        style="width: auto; margin-top:0; padding: 14px 20px; background-color: #6200EE;"
+                        onclick="fillFullPayment()">To'liq</button>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="button" class="btn cancel-btn" onclick="closePaymentModal()">Bekor qilish</button>
+                    <button type="submit" class="btn">Saqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div id="add-customer-modal" class="modal hidden">
+        <div class="modal-content">
+            <h4>Yangi Mijoz</h4>
+            <form id="add-customer-form">
+                <input type="text" id="new-customer-name" placeholder="Ism Familiya" required>
+                <input type="tel" id="new-customer-phone" placeholder="+998..." required>
+                <div class="modal-actions">
+                    <button type="button" onclick="closeAddCustomerModal()">Bekor qilish</button>
+                    <button type="submit" class="primary-btn">Qo'shish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Debt Modal -->
+    <div id="add-debt-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Qarz Yozish</h3>
+            <form id="add-debt-form">
+                <input type="hidden" id="debt-customer-id">
+                <div class="form-group" style="text-align: left; margin-bottom: 10px;">
+                    <label style="font-size: 12px; color: #888;">Mijoz</label>
+                    <input type="text" id="debt-customer-name" readonly style="background: #f5f5f5; color: #555;">
+                </div>
+                <input type="number" id="debt-amount" placeholder="Summa (so'm)" required>
+                <div class="form-group" style="text-align: left; margin-bottom: 10px;">
+                    <label style="font-size: 12px; color: #888;">Qaytarish vaqti</label>
+                    <input type="date" id="debt-due-date" required>
+                </div>
+                <input type="text" id="debt-desc" placeholder="Izoh (ixtiyoriy)">
+
+                <div class="modal-actions">
+                    <button type="button"
+                        onclick="document.getElementById('add-debt-modal').classList.add('hidden')">Bekor</button>
+                    <button type="submit" class="primary-btn">Saqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+
+</html>

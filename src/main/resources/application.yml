@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/debtbook}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:user}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  web:
+    resources:
+      cache:
+        period: 0
+
+  jackson:
+      date-format: yyyy-MM-dd HH:mm:ss
+      time-zone: Asia/Tashkent
+  telegram:
+    bot:
+      token: ${BOT_TOKEN:8484107475:AAF8ztaTnE8iJs-y5C8LBcEODTCxqZd_JMw}
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:kngt3636@gmail.com}
+    password: ${MAIL_PASSWORD:glhr sugq bcau bvzu}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true

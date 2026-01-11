@@ -1,0 +1,19 @@
+package uz.muso.debtbook.service.telegram;
+
+public enum BotState {
+    START,
+    WAITING_FOR_EMAIL,
+    WAITING_FOR_CODE,
+    WAITING_FOR_SHOP_NAME,
+    WAITING_FOR_SHOP_ADDRESS,
+    DASHBOARD,
+
+    // Customer Flow
+    WAITING_FOR_CUSTOMER_NAME,
+    WAITING_FOR_CUSTOMER_PHONE,
+
+    // Debt Flow
+    WAITING_FOR_DEBT_CUSTOMER_ID,
+    WAITING_FOR_DEBT_AMOUNT,
+    WAITING_FOR_DEBT_DESC
+}
