@@ -13,7 +13,7 @@ public class AccessKeyFilter implements Filter {
 
     private final UserRepository userRepo;
 
-    public AccessKeyFilter(UserRepository userRepo) {
+    public AccessKeyFilter(@org.springframework.context.annotation.Lazy UserRepository userRepo) {
         this.userRepo = userRepo;
     }
 
