@@ -3,41 +3,46 @@ package uz.muso.debtbook.service;
 import org.springframework.stereotype.Service;
 
 @Service
+@Service
 public class EmailService {
 
-    private final String sendGridApiKey;
-    private final String fromEmail;
+    @org.springframework.beans.factory.annotation.Value("${spring.mailgun.api-key:}")
+    private String apiKey;
 
-    public EmailService(
-            @org.springframework.beans.factory.annotation.Value("${spring.sendgrid.api-key:}") String sendGridApiKey,
-            @org.springframework.beans.factory.annotation.Value("${spring.mail.username:noreply@debtbook.com}") String fromEmail) {
-        this.sendGridApiKey = sendGridApiKey;
-        this.fromEmail = fromEmail;
-    }
+    @org.springframework.beans.factory.annotation.Value("${spring.mailgun.domain:}")
+    private String domain;
+
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username:noreply@debtbook.com}")
+    private String fromEmail;
+
+    private final org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
 
     public void sendCode(String to, String code) {
-        if (sendGridApiKey == null || sendGridApiKey.isEmpty()) {
-            System.err.println("❌ SendGrid API Key is missing! Cannot send email.");
+        if (apiKey == null || apiKey.isEmpty() || domain == null || domain.isEmpty()) {
+            System.err.println("❌ Mailgun Config Missing! cannot send email.");
             return;
         }
 
-        com.sendgrid.helpers.mail.objects.Email from = new com.sendgrid.helpers.mail.objects.Email(fromEmail);
-        String subject = "Kirish kodi";
-        com.sendgrid.helpers.mail.objects.Email toEmail = new com.sendgrid.helpers.mail.objects.Email(to);
-        com.sendgrid.helpers.mail.objects.Content content = new com.sendgrid.helpers.mail.objects.Content("text/plain",
-                "Do‘kon tizimiga kirish kodi: " + code);
-        com.sendgrid.helpers.mail.Mail mail = new com.sendgrid.helpers.mail.Mail(from, subject, toEmail, content);
+        String url = "https://api.mailgun.net/v3/" + domain + "/messages";
 
-        com.sendgrid.SendGrid sg = new com.sendgrid.SendGrid(sendGridApiKey);
-        com.sendgrid.Request request = new com.sendgrid.Request();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setBasicAuth("api", apiKey);
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+        org.springframework.util.MultiValueMap<String, String> map = new org.springframework.util.LinkedMultiValueMap<>();
+        map.add("from", "Debtbook <" + fromEmail + ">");
+        map.add("to", to);
+        map.add("subject", "Kirish kodi");
+        map.add("text", "Do‘kon tizimiga kirish kodi: " + code);
+
+        org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(
+                map, headers);
+
         try {
-            request.setMethod(com.sendgrid.Method.POST);
-            request.setEndpoint("mail/send");
-            request.setBody(mail.build());
-            com.sendgrid.Response response = sg.api(request);
-            System.out.println("✅ Email sent via SendGrid! Status: " + response.getStatusCode());
-        } catch (java.io.IOException ex) {
-            System.err.println("❌ Failed to send email via SendGrid: " + ex.getMessage());
+            restTemplate.postForEntity(url, request, String.class);
+            System.out.println("✅ Email sent via Mailgun! To: " + to);
+        } catch (Exception ex) {
+            System.err.println("❌ Failed to send via Mailgun: " + ex.getMessage());
             ex.printStackTrace();
         }
     }
