@@ -3,7 +3,6 @@ package uz.muso.debtbook.service;
 import org.springframework.stereotype.Service;
 
 @Service
-@Service
 public class EmailService {
 
     @org.springframework.beans.factory.annotation.Value("${spring.mailgun.api-key:}")
