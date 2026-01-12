@@ -65,17 +65,26 @@ public class EskizSmsService {
             throw new RuntimeException("❌ Eskiz credentials missing in application.yml");
         }
 
+        System.out.println("🔄 Eskiz: Logging in with " + email + " (Pass len: " + password.length() + ")");
+
         String url = BASE_URL + "/auth/login";
-        Map<String, String> body = new HashMap<>();
-        body.put("email", email);
-        body.put("password", password);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        org.springframework.util.MultiValueMap<String, String> body = new org.springframework.util.LinkedMultiValueMap<>();
+        body.add("email", email);
+        body.add("password", password);
+
+        HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(url, body, Map.class);
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             Map<String, Object> data = (Map<String, Object>) response.getBody().get("data");
             this.token = (String) data.get("token");
-            System.out.println("🔄 Eskiz Token Refreshed");
+            System.out.println("✅ Eskiz Token Refreshed Successfully");
         } catch (Exception e) {
+            System.err.println("❌ Eskiz Login Failed: " + e.getMessage());
             throw new RuntimeException("❌ Failed to login to Eskiz: " + e.getMessage());
         }
     }

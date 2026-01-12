@@ -32,4 +32,4 @@ spring:
     domain: ${MAILGUN_DOMAIN}
 eskiz:
   email: ${ESKIZ_EMAIL:musobek235@gmail.com}
-  password: ${ESKIZ_PASSWORD:.Czp@#zC8pCcT3p}
+  password: "${ESKIZ_PASSWORD:.Czp@#zC8pCcT3p}"
