@@ -9,7 +9,7 @@ import uz.muso.debtbook.repository.DebtRepository;
 import uz.muso.debtbook.repository.ShopRepository;
 import uz.muso.debtbook.repository.UserRepository;
 import uz.muso.debtbook.service.AuthService;
-import uz.muso.debtbook.service.EmailOtpService;
+import uz.muso.debtbook.service.SmsOtpService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TelegramUpdateHandler {
 
     private final TelegramService telegramService;
-    private final EmailOtpService emailOtpService;
+    private final SmsOtpService smsOtpService;
     private final AuthService authService;
     private final UserRepository userRepo;
     private final CustomerRepository customerRepo;
@@ -32,14 +32,14 @@ public class TelegramUpdateHandler {
     private final Map<Long, TelegramSession> sessions = new ConcurrentHashMap<>();
 
     public TelegramUpdateHandler(TelegramService telegramService,
-            EmailOtpService emailOtpService,
+            SmsOtpService smsOtpService,
             AuthService authService,
             UserRepository userRepo,
             CustomerRepository customerRepo,
             DebtRepository debtRepo,
             ShopRepository shopRepo) {
         this.telegramService = telegramService;
-        this.emailOtpService = emailOtpService;
+        this.smsOtpService = smsOtpService;
         this.authService = authService;
         this.userRepo = userRepo;
         this.customerRepo = customerRepo;
@@ -57,6 +57,16 @@ public class TelegramUpdateHandler {
         Map<String, Object> chat = (Map<String, Object>) message.get("chat");
         Long chatId = Long.valueOf(chat.get("id").toString());
         String text = (String) message.get("text");
+
+        // Handle Contact Sharing
+        if (message.containsKey("contact")) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> contact = (Map<String, Object>) message.get("contact");
+            String phoneNumber = (String) contact.get("phone_number");
+            handleContactShare(chatId, phoneNumber);
+            return;
+        }
+
         if (text == null)
             text = "";
 
@@ -67,19 +77,18 @@ public class TelegramUpdateHandler {
         });
 
         if ("/start".equals(text)) {
-            session.setState(BotState.WAITING_FOR_EMAIL);
-            telegramService.sendMessage(chatId, "Assalomu alaykum! Iltimos, emailingizni kiriting:");
+            session.setState(BotState.WAITING_FOR_EMAIL); // Actually waiting for phone, but reusing state
+            sendContactRequestButton(chatId);
             return;
         }
 
         switch (session.getState()) {
-            case WAITING_FOR_EMAIL -> handleEmail(session, text);
+            case WAITING_FOR_EMAIL -> handleManualPhone(session, text); // Reuse state
             case WAITING_FOR_CODE -> handleCode(session, text);
             case WAITING_FOR_SHOP_NAME -> handleShopName(session, text);
             case WAITING_FOR_SHOP_ADDRESS -> handleShopAddress(session, text);
             case DASHBOARD -> handleDashboard(session, text);
 
-            // New flows
             case WAITING_FOR_CUSTOMER_NAME -> handleCustomerName(session, text);
             case WAITING_FOR_CUSTOMER_PHONE -> handleCustomerPhone(session, text);
 
@@ -91,13 +100,37 @@ public class TelegramUpdateHandler {
         }
     }
 
-    private void handleEmail(TelegramSession session, String email) {
+    private void sendContactRequestButton(Long chatId) {
+        Map<String, Object> button = Map.of("text", "📱 Telefon raqamni yuborish", "request_contact", true);
+        Map<String, Object> keyboard = Map.of(
+                "keyboard", List.of(List.of(button)),
+                "resize_keyboard", true,
+                "one_time_keyboard", true);
+        telegramService.sendMessage(chatId, "Assalomu alaykum! Tizimga kirish uchun telefon raqamingizni yuboring:",
+                keyboard);
+    }
+
+    private void handleContactShare(Long chatId, String phoneNumber) {
+        if (!phoneNumber.startsWith("+")) {
+            phoneNumber = "+" + phoneNumber;
+        }
+        TelegramSession session = sessions.computeIfAbsent(chatId, k -> {
+            TelegramSession s = new TelegramSession();
+            s.setChatId(chatId);
+            return s;
+        });
+
+        handleManualPhone(session, phoneNumber);
+    }
+
+    private void handleManualPhone(TelegramSession session, String phoneNumber) {
         try {
-            emailOtpService.sendCode(email);
-            session.setTempEmail(email);
+            smsOtpService.sendCode(phoneNumber);
+            session.setTempEmail(phoneNumber); // Storing phone in tempEmail field for minimal refactor
             session.setState(BotState.WAITING_FOR_CODE);
             telegramService.sendMessage(session.getChatId(),
-                    "Tasdiqlash kodi emailingizga (" + email + ") yuborildi. Kodni kiriting:");
+                    "Tasdiqlash kodi SMS orqali (" + phoneNumber + ") yuborildi. Kodni kiriting:", null); // Remove
+                                                                                                          // keyboard
         } catch (Exception e) {
             telegramService.sendMessage(session.getChatId(), "Xatolik: " + e.getMessage());
         }
@@ -105,20 +138,18 @@ public class TelegramUpdateHandler {
 
     private void handleCode(TelegramSession session, String code) {
         session.setTempCode(code);
+        String phoneNumber = session.getTempEmail(); // Actually phone
 
-        // Check if user exists. Repo returns Optional<User>, so we verify presence.
-        boolean userExists = userRepo.findByEmail(session.getTempEmail()).isPresent();
+        boolean userExists = userRepo.findByPhoneNumber(phoneNumber).isPresent();
 
         if (userExists) {
             try {
-                // Try logging in (null shop info required for existing users in this logic)
-                String accessKey = authService.verify(session.getTempEmail(), code, null, null);
+                // Verify and Login
+                String accessKey = authService.verify(phoneNumber, code, null, null);
 
                 // Link telegram
-                User user = userRepo.findByEmail(session.getTempEmail()).orElseThrow();
+                User user = userRepo.findByPhoneNumber(phoneNumber).orElseThrow();
                 user.setTelegramChatId(session.getChatId());
-                userRepo.save(user);
-
                 userRepo.save(user);
 
                 session.setState(BotState.DASHBOARD);
@@ -146,15 +177,15 @@ public class TelegramUpdateHandler {
 
     private void handleShopAddress(TelegramSession session, String shopAddress) {
         try {
-            // Now verify and register
+            // Register
             String accessKey = authService.verify(
-                    session.getTempEmail(),
+                    session.getTempEmail(), // phoneNumber
                     session.getTempCode(),
                     session.getTempShopName(),
                     shopAddress);
 
             // Link telegram
-            User user = userRepo.findByEmail(session.getTempEmail()).orElseThrow();
+            User user = userRepo.findByPhoneNumber(session.getTempEmail()).orElseThrow();
             user.setTelegramChatId(session.getChatId());
             userRepo.save(user);
 
@@ -168,8 +199,7 @@ public class TelegramUpdateHandler {
         } catch (Exception e) {
             telegramService.sendMessage(session.getChatId(),
                     "Xatolik: " + e.getMessage() + "\n/start ni bosib qaytadan urinib ko'ring.");
-            // Reset to start on bad code/error, so user starts fresh
-            session.setState(BotState.WAITING_FOR_EMAIL); // Or restart
+            session.setState(BotState.WAITING_FOR_EMAIL);
         }
     }
 
@@ -196,8 +226,6 @@ public class TelegramUpdateHandler {
         String url = "https://leticia-stenosed-restrainingly.ngrok-free.dev?chat_id=" + chatId;
         Map<String, Object> webAppInfo = Map.of("url", url);
         Map<String, Object> button = Map.of("text", "📱 Mini App ochish", "web_app", webAppInfo);
-
-        // Using ReplyKeyboardMarkup to show persistent button
         return Map.of(
                 "keyboard", List.of(List.of(button)),
                 "resize_keyboard", true);
@@ -223,8 +251,6 @@ public class TelegramUpdateHandler {
             customer.setFullName(session.getTempCustomerName());
             customer.setPhone(phone);
             customer.setShop(user.getShop());
-            customer.setTelegramChatId(null); // Optional
-
             customerRepo.save(customer);
 
             session.setState(BotState.DASHBOARD);
@@ -265,7 +291,6 @@ public class TelegramUpdateHandler {
     private void handleDebtCustomerId(TelegramSession session, String text) {
         try {
             Long customerId = Long.parseLong(text);
-            // Verify customer belongs to this shop
             User user = getUserByChatId(session.getChatId());
             Customer customer = customerRepo.findById(customerId).orElse(null);
 
@@ -306,7 +331,7 @@ public class TelegramUpdateHandler {
             debt.setTotalAmount(session.getTempDebtAmount());
             debt.setDescription(desc);
             debt.setDebtDate(LocalDate.now());
-            debt.setDueDate(LocalDate.now().plusDays(30)); // Default 30 days
+            debt.setDueDate(LocalDate.now().plusDays(30));
             debt.setClosed(false);
 
             debtRepo.save(debt);

@@ -4,10 +4,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uz.muso.debtbook.dto.VerifyCodeRequest;
 import uz.muso.debtbook.model.Shop;
-import uz.muso.debtbook.model.EmailCode;
+import uz.muso.debtbook.model.SmsCode;
 import uz.muso.debtbook.model.User;
 import uz.muso.debtbook.repository.ShopRepository;
-import uz.muso.debtbook.repository.EmailCodeRepository;
+import uz.muso.debtbook.repository.SmsCodeRepository;
 import uz.muso.debtbook.repository.UserRepository;
 
 import java.time.LocalDateTime;
@@ -16,11 +16,11 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
-    private final EmailCodeRepository codeRepo;
+    private final SmsCodeRepository codeRepo;
     private final UserRepository userRepo;
     private final ShopRepository shopRepo;
 
-    public AuthService(EmailCodeRepository codeRepo,
+    public AuthService(SmsCodeRepository codeRepo,
             UserRepository userRepo,
             ShopRepository shopRepo) {
         this.codeRepo = codeRepo;
@@ -29,23 +29,23 @@ public class AuthService {
     }
 
     @Transactional
-    public String verify(String email, String code,
+    public String verify(String phoneNumber, String code,
             String shopName, String shopAddress) {
 
-        EmailCode ec = codeRepo
-                .findTopByEmailAndUsedFalseOrderByCreatedAtDesc(email)
+        SmsCode sc = codeRepo
+                .findTopByPhoneNumberAndUsedFalseOrderByCreatedAtDesc(phoneNumber)
                 .orElseThrow(() -> new RuntimeException("Kod topilmadi"));
 
-        if (ec.isUsed() || ec.getExpiresAt().isBefore(LocalDateTime.now()))
+        if (sc.isUsed() || sc.getExpiresAt().isBefore(LocalDateTime.now()))
             throw new RuntimeException("Kod eskirgan");
 
-        if (!ec.getCode().equals(code))
+        if (!sc.getCode().equals(code))
             throw new RuntimeException("Kod noto‘g‘ri");
 
-        ec.setUsed(true);
-        codeRepo.save(ec);
+        sc.setUsed(true);
+        codeRepo.save(sc);
 
-        User user = (User) userRepo.findByEmail(email).orElse(null);
+        User user = (User) userRepo.findByPhoneNumber(phoneNumber).orElse(null);
 
         if (user == null) {
             Shop shop = new Shop();
@@ -54,7 +54,7 @@ public class AuthService {
             shopRepo.save(shop);
 
             user = new User();
-            user.setEmail(email);
+            user.setPhoneNumber(phoneNumber);
             user.setShop(shop);
         }
 

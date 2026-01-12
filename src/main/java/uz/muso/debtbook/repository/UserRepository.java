@@ -10,7 +10,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByAccessKey(String accessKey);
 
-    Optional<User> findByEmail(String email);
+    Optional<User> findByPhoneNumber(String phoneNumber);
 
     Optional<User> findByTelegramChatId(Long telegramChatId);
 

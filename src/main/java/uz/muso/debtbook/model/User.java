@@ -16,11 +16,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @Column(unique = true)
-    private String email;
-
-
+    private String phoneNumber;
 
     @ManyToOne
     @JoinColumn(name = "shop_id")
@@ -32,6 +29,5 @@ public class User {
     private Long telegramChatId;
 
     private LocalDateTime createdAt = LocalDateTime.now();
-
 
 }

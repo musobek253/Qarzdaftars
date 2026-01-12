@@ -3,7 +3,7 @@ package uz.muso.debtbook.controller;
 import org.springframework.web.bind.annotation.*;
 import uz.muso.debtbook.dto.VerifyCodeRequest;
 import uz.muso.debtbook.service.AuthService;
-import uz.muso.debtbook.service.EmailOtpService;
+import uz.muso.debtbook.service.SmsOtpService;
 
 import java.util.Map;
 
@@ -11,35 +11,35 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final EmailOtpService emailOtpService;
+    private final SmsOtpService smsOtpService;
     private final AuthService authService;
 
-    public AuthController(EmailOtpService emailOtpService, AuthService authService) {
-        this.emailOtpService = emailOtpService;
+    public AuthController(SmsOtpService smsOtpService, AuthService authService) {
+        this.smsOtpService = smsOtpService;
         this.authService = authService;
     }
 
     @PostMapping("/send-code")
     public Map<String, String> sendCode(@RequestBody Map<String, String> body) {
 
-        String email = body.get("email");
+        String phoneNumber = body.get("phoneNumber");
 
-        if (email == null || email.isBlank()) {
-            throw new RuntimeException("Email majburiy");
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new RuntimeException("Telefon raqam majburiy");
         }
 
-        emailOtpService.sendCode(email);
+        smsOtpService.sendCode(phoneNumber);
 
         return Map.of(
                 "status", "code_sent",
-                "message", "Tasdiqlash kodi emailingizga yuborildi");
+                "message", "Tasdiqlash kodi telefoningizga yuborildi");
     }
 
     @PostMapping("/verify-code")
     public Map<String, String> verifyCode(@RequestBody VerifyCodeRequest req) {
 
-        if (req.getEmail() == null || req.getEmail().isBlank()) {
-            throw new RuntimeException("Email majburiy");
+        if (req.getPhoneNumber() == null || req.getPhoneNumber().isBlank()) {
+            throw new RuntimeException("Telefon raqam majburiy");
         }
 
         if (req.getCode() == null || req.getCode().isBlank()) {
@@ -47,7 +47,7 @@ public class AuthController {
         }
 
         String accessKey = authService.verify(
-                req.getEmail(),
+                req.getPhoneNumber(),
                 req.getCode(),
                 req.getShopName(),
                 req.getShopAddress());
