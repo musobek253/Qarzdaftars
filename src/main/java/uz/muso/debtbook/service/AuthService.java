@@ -76,4 +76,33 @@ public class AuthService {
         return user.getAccessKey();
     }
 
+    @Transactional
+    public String forceLogin(String phoneNumber) {
+        User user = (User) userRepo.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new RuntimeException("Foydalanuvchi topilmadi"));
+
+        user.setAccessKey(UUID.randomUUID().toString());
+        userRepo.save(user);
+        return user.getAccessKey();
+    }
+
+    @Transactional
+    public String forceRegister(String phoneNumber, String shopName, String shopAddress) {
+        if (userRepo.findByPhoneNumber(phoneNumber).isPresent()) {
+            throw new RuntimeException("Bu raqam egasi avval ro'yxatdan o'tgan");
+        }
+
+        Shop shop = new Shop();
+        shop.setName(shopName);
+        shop.setAddress(shopAddress);
+        shopRepo.save(shop);
+
+        User user = new User();
+        user.setPhoneNumber(phoneNumber);
+        user.setShop(shop);
+        user.setAccessKey(UUID.randomUUID().toString());
+        userRepo.save(user);
+
+        return user.getAccessKey();
+    }
 }
